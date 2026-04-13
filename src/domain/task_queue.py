@@ -99,6 +99,7 @@ class TaskQueue:
             yield task
 
     def _pop_first_by_status(self, status: str) -> Task | None:
+        """Ищет задачу по статусу"""
         for index, task in enumerate(self._tasks):
             if task.status == status:
                 return self._tasks.pop(index)
@@ -109,6 +110,7 @@ class TaskQueue:
         min_priority: int | None = None,
         max_priority: int | None = None,
     ) -> Task | None:
+        """Ищет задачу по приоритету"""
         for index, task in enumerate(self._tasks):
             if min_priority is not None and task.priority < min_priority:
                 continue

@@ -91,6 +91,7 @@ class TaskQueueInteract:
                 )
 
     def _get_executor(self, task: Task) -> TaskExecutor | None:
+        """Ищет исполнителя"""
         for executor in self._executors:
             if executor.can_handle(task):
                 return executor
