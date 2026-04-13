@@ -3,7 +3,7 @@ import asyncio
 from src.domain.task import Task
 
 
-class NewTaskHandler():
+class NewTaskHandler:
     """Обработчик новых задач"""
 
     def can_handle(self, task: Task) -> bool:
@@ -16,7 +16,7 @@ class NewTaskHandler():
         task.status = "processing"
 
 
-class ProcessingTaskHandler():
+class ProcessingTaskHandler:
     """Обработчик задач в работе"""
 
     def can_handle(self, task: Task) -> bool:

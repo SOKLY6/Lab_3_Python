@@ -13,19 +13,7 @@ from src.domain.exceptions import (
 from src.domain.protocols import TaskExecutor
 from src.domain.task import Task
 from src.domain.task_queue import TaskQueue
-from src.usecases.task_handlers import (
-    CompleteTaskHandler,
-    NewTaskHandler,
-    ProcessingTaskHandler,
-)
-
-
-class BrokenHandler:
-    def can_handle(self, task: Task) -> bool:
-        return task.id == 99
-
-    async def handle_task(self, task: Task) -> None:
-        raise RuntimeError("boom")
+from src.usecases.task_handlers import NewTaskHandler, ProcessingTaskHandler
 
 
 def test_task_validates_fields() -> None:
@@ -58,64 +46,59 @@ def test_task_raises_validation_errors() -> None:
         Task(1, "x", 1, "bad")
 
 
-def test_task_queue_iter_contains_and_filters() -> None:
-    first = Task(1, "a", 1, "new")
-    second = Task(2, "b", 2, "processing")
-    third = Task(3, "c", 3, "new")
-    queue = TaskQueue([first, second, third])
+def test_task_queue_iter_contains_put_and_get() -> None:
+    async def run() -> tuple[list[int], bool, int]:
+        first = Task(1, "a", 1, "new")
+        second = Task(2, "b", 2, "processing")
+        queue = TaskQueue([first])
+        await queue.put(second)
+        task = await queue.get()
+        return [item.id for item in queue], first in queue, task.id if task else 0
 
-    assert [task.id for task in queue] == [1, 2, 3]
-    assert first in queue
-    assert Task(4, "d") not in queue
+    remaining_ids, contains_first, task_id = asyncio.run(run())
 
-    filtered_by_status = queue.filter_by_status("new")
-    assert next(filtered_by_status).id == 1
-    assert [task.id for task in queue] == [2, 3]
-    assert [task.id for task in filtered_by_status] == [3]
-    assert [task.id for task in queue] == [2]
-
-    queue.add_tasks([first, third])
-    filtered_by_priority = queue.filter_by_priority(min_priority=2, max_priority=3)
-    assert [task.id for task in filtered_by_priority] == [2, 3]
-    assert [task.id for task in queue] == [1]
+    assert remaining_ids == [2]
+    assert contains_first is False
+    assert task_id == 1
 
 
-def test_task_queue_processes_tasks() -> None:
-    queue = TaskQueue(
-        [
-            Task(1, "a", 1, "new"),
-            Task(2, "b", 1, "processing"),
-            Task(3, "c", 1, "complete"),
-            Task(99, "d", 1, "new"),
-        ]
-    )
-
-    processed = asyncio.run(
-        queue.process_tasks(
+def test_task_queue_filters_remove_tasks() -> None:
+    async def run() -> tuple[list[int], list[int], list[int]]:
+        queue = TaskQueue(
             [
-                BrokenHandler(),
-                NewTaskHandler(),
-                ProcessingTaskHandler(),
-                CompleteTaskHandler(),
+                Task(1, "a", 1, "new"),
+                Task(2, "b", 2, "processing"),
+                Task(3, "c", 3, "new"),
             ]
         )
-    )
+        filtered_by_status = [task.id async for task in queue.filter_by_status("new")]
+        await queue.put(Task(3, "c", 3, "new"))
+        filtered_by_priority = [
+            task.id
+            async for task in queue.filter_by_priority(
+                min_priority=2,
+                max_priority=3,
+            )
+        ]
+        remaining = [task.id for task in queue]
+        return filtered_by_status, filtered_by_priority, remaining
 
-    tasks = list(queue)
-    assert processed == 3
-    assert tasks[0].status == "processing"
-    assert tasks[1].status == "complete"
-    assert tasks[2].status == "complete"
-    assert tasks[3].status == "new"
+    filtered_by_status, filtered_by_priority, remaining = asyncio.run(run())
+
+    assert filtered_by_status == [1, 3]
+    assert filtered_by_priority == [2, 3]
+    assert remaining == []
 
 
-def test_task_queue_skips_task_without_handler() -> None:
-    queue = TaskQueue([Task(1, "a", 1, "new")])
+def test_task_queue_context_manager_closes_queue() -> None:
+    async def run() -> bool:
+        queue = TaskQueue([])
+        async with queue:
+            pass
+        task = await queue.get()
+        return task is None
 
-    processed = asyncio.run(queue.process_tasks([ProcessingTaskHandler()]))
-
-    assert processed == 0
-    assert list(queue)[0].status == "new"
+    assert asyncio.run(run()) is True
 
 
 def test_exceptions_inherit_base_exception() -> None:
@@ -128,4 +111,3 @@ def test_exceptions_inherit_base_exception() -> None:
 def test_handlers_match_protocol() -> None:
     assert isinstance(NewTaskHandler(), TaskExecutor)
     assert isinstance(ProcessingTaskHandler(), TaskExecutor)
-    assert isinstance(CompleteTaskHandler(), TaskExecutor)

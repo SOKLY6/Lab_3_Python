@@ -3,12 +3,10 @@ from pathlib import Path
 import pytest
 
 from src.domain.protocols import TaskSource
-from src.domain.task import Task
 from src.logger.logger import get_logger
 from src.repository.task_api import TaskAPI
 from src.repository.task_file import FileSource
 from src.repository.task_generator import TaskGenerator
-from src.repository.task_storage import TaskStorage
 
 
 def test_file_source_reads_tasks(tmp_path: Path) -> None:
@@ -41,16 +39,6 @@ def test_task_generator_creates_requested_count() -> None:
 
     assert len(tasks) == 2
     assert [task.id for task in tasks] == [1, 2]
-
-
-def test_task_storage_stores_tasks() -> None:
-    storage = TaskStorage()
-    tasks = [Task(1, "a"), Task(2, "b")]
-
-    storage.add_tasks(tasks)
-
-    assert storage.get_list_tasks() == tasks
-
 
 def test_repository_objects_match_protocol_and_logger_returns_logger() -> None:
     assert isinstance(TaskAPI(), TaskSource)
