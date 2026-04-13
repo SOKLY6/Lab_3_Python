@@ -9,5 +9,5 @@ logging.basicConfig(
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Возвращает логгер с указанным именем"""
+    """Возвращает логгер"""
     return logging.getLogger(name)

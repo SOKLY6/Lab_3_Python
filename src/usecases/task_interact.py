@@ -1,24 +1,41 @@
-from src.domain.protocols import TaskSource
-from src.domain.task import Task
-from src.repository.task_storage import TaskStorage
+from logging import Logger
+
+from src.domain.protocols import TaskExecutor, TaskSource
+from src.domain.task_queue import TaskQueue
+from src.logger.logger import get_logger
 
 
-class TaskInteract:
-    """Класс для работы с задачами"""
+class TaskQueueInteract:
+    """Сервис очереди"""
 
-    def __init__(self, storage: TaskStorage) -> None:
-        """Инициализирует хранилище"""
-        self._storage = storage
+    def __init__(self, queue: TaskQueue) -> None:
+        """Сохраняет очередь"""
+        self._queue = queue
+        self._logger = get_logger(__name__)
 
-    def add_tasks_from_source(self, source: TaskSource) -> int:
-        """Добавляет задачи из источника в хранилище"""
-        if not isinstance(source, TaskSource):
-            raise TypeError
+    def add_tasks_from_sources(self, sources: list[TaskSource]) -> int:
+        """Добавляет задачи из источников"""
+        total = 0
 
-        tasks = list(source.get_tasks())
-        self._storage.add_tasks(tasks)
-        return len(tasks)
+        for source in sources:
+            if not isinstance(source, TaskSource):
+                raise TypeError
 
-    def get_all_tasks(self) -> list[Task]:
-        """Возвращает все задачи"""
-        return self._storage.get_list_tasks()
+            tasks = list(source.get_tasks())
+            self._queue.add_tasks(tasks)
+            total += len(tasks)
+
+        return total
+
+    def get_all_tasks(self) -> TaskQueue:
+        """Возвращает очередь"""
+        return self._queue
+
+    async def process_tasks_with_handlers(
+        self,
+        handlers: list[TaskExecutor],
+        logger: Logger | None = None,
+    ) -> int:
+        """Запускает обработку"""
+        current_logger = logger or self._logger
+        return await self._queue.process_tasks(handlers, current_logger)

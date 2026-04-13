@@ -1,18 +1,18 @@
 class TaskException(Exception):
-    pass
+    """Базовая ошибка"""
 
 
 class IncorrectTaskId(TaskException):
-    pass
+    """Ошибка id"""
 
 
 class EmptyTaskPayload(TaskException):
-    pass
+    """Ошибка payload"""
 
 
 class IncorrectTaskPriority(TaskException):
-    pass
+    """Ошибка приоритета"""
 
 
 class IncorrectTaskStatus(TaskException):
-    pass
+    """Ошибка статуса"""
