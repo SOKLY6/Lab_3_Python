@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterator, Iterable, Iterator
+from typing import AsyncIterator, Iterable
 
 from src.domain.task import Task
 
@@ -12,10 +12,20 @@ class TaskQueue:
         self._tasks = list(tasks) if tasks is not None else []
         self._condition = asyncio.Condition()
         self._closed = False
+        self._iter_index = 0
 
-    def __iter__(self) -> Iterator[Task]:
+    def __iter__(self) -> "TaskQueue":
         """Итерируется по задачам"""
-        return iter(list(self._tasks))
+        self._iter_index = 0
+        return self
+
+    def __next__(self) -> Task:
+        """Возвращает следующую задачу"""
+        if self._iter_index < len(self._tasks):
+            task = self._tasks[self._iter_index]
+            self._iter_index += 1
+            return task
+        raise StopIteration
 
     def __contains__(self, task: object) -> bool:
         """Проверяет наличие задачи"""
